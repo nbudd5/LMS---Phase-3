@@ -79,7 +79,7 @@ namespace LMS.Areas.Identity.Pages.Account
         {
 
             [Required]
-            [Display( Name = "Role" )]
+            [Display(Name = "Role")]
             public string Role { get; set; }
 
             public List<SelectListItem> Roles { get; } = new List<SelectListItem>
@@ -97,68 +97,68 @@ namespace LMS.Areas.Identity.Pages.Account
             };
 
             [Required]
-            [Display( Name = "First Name" )]
+            [Display(Name = "First Name")]
             public string FirstName { get; set; }
 
             [Required]
-            [Display( Name = "Last Name" )]
+            [Display(Name = "Last Name")]
             public string LastName { get; set; }
 
             [Required]
-            [Display( Name = "Date of Birth" )]
-            [BindProperty, DisplayFormat( DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true )]
-            [DataType( DataType.Date )]
+            [Display(Name = "Date of Birth")]
+            [BindProperty, DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
+            [DataType(DataType.Date)]
             public System.DateTime DOB { get; set; } = DateTime.Now;
 
             [Required]
             //[StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
-            [DataType( DataType.Password )]
-            [Display( Name = "Password" )]
+            [DataType(DataType.Password)]
+            [Display(Name = "Password")]
             public string Password { get; set; }
 
-            [DataType( DataType.Password )]
-            [Display( Name = "Confirm password" )]
-            [Compare( "Password", ErrorMessage = "The password and confirmation password do not match." )]
+            [DataType(DataType.Password)]
+            [Display(Name = "Confirm password")]
+            [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
             public string ConfirmPassword { get; set; }
 
         }
 
 
-        public async Task OnGetAsync( string returnUrl = null )
+        public async Task OnGetAsync(string returnUrl = null)
         {
             ReturnUrl = returnUrl;
-            ExternalLogins = ( await _signInManager.GetExternalAuthenticationSchemesAsync() ).ToList();
+            ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
 
 
         }
 
-        public async Task<IActionResult> OnPostAsync( string returnUrl = null )
+        public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
-            returnUrl ??= Url.Content( "~/" );
-            ExternalLogins = ( await _signInManager.GetExternalAuthenticationSchemesAsync() ).ToList();
-            if ( ModelState.IsValid )
+            returnUrl ??= Url.Content("~/");
+            ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+            if (ModelState.IsValid)
             {
                 var uid = CreateNewUser(Input.FirstName, Input.LastName, Input.DOB, Input.Department, Input.Role);
                 var user = new ApplicationUser { UserName = uid };
 
-                await _userStore.SetUserNameAsync( user, uid, CancellationToken.None );
+                await _userStore.SetUserNameAsync(user, uid, CancellationToken.None);
                 var result = await _userManager.CreateAsync(user, Input.Password);
 
-                if ( result.Succeeded )
+                if (result.Succeeded)
                 {
-                    _logger.LogInformation( "User created a new account with password." );
-                    await _userManager.AddToRoleAsync( user, Input.Role );
+                    _logger.LogInformation("User created a new account with password.");
+                    await _userManager.AddToRoleAsync(user, Input.Role);
 
                     var userId = await _userManager.GetUserIdAsync(user);
 
-                    await _signInManager.SignInAsync( user, isPersistent: false );
-                    return LocalRedirect( returnUrl );
+                    await _signInManager.SignInAsync(user, isPersistent: false);
+                    return LocalRedirect(returnUrl);
 
                 }
-                foreach ( var error in result.Errors )
+                foreach (var error in result.Errors)
                 {
-                    ModelState.AddModelError( string.Empty, error.Description );
+                    ModelState.AddModelError(string.Empty, error.Description);
                 }
             }
 
@@ -174,9 +174,9 @@ namespace LMS.Areas.Identity.Pages.Account
             }
             catch
             {
-                throw new InvalidOperationException( $"Can't create an instance of '{nameof( ApplicationUser )}'. " +
-                    $"Ensure that '{nameof( IdentityUser )}' is not an abstract class and has a parameterless constructor, or alternatively " +
-                    $"override the register page in /Areas/Identity/Pages/Account/Register.cshtml" );
+                throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
+                    $"Ensure that '{nameof(IdentityUser)}' is not an abstract class and has a parameterless constructor, or alternatively " +
+                    $"override the register page in /Areas/Identity/Pages/Account/Register.cshtml");
             }
         }
 
@@ -192,9 +192,65 @@ namespace LMS.Areas.Identity.Pages.Account
         /// <param name="departmentAbbrev">The department abbreviation that the user belongs to (ignore for Admins) </param>
         /// <param name="role">The user's role: one of "Administrator", "Professor", "Student"</param>
         /// <returns>The uID of the new user</returns>
-        string CreateNewUser( string firstName, string lastName, DateTime DOB, string departmentAbbrev, string role )
+        string CreateNewUser(string firstName, string lastName, DateTime DOB, string departmentAbbrev, string role)
         {
-            return "unknown";
+            var newUID = generateUID();
+            DateOnly dob = DateOnly.FromDateTime(DOB);
+
+            if (role == "Student")
+            {
+                Student s = new Student();
+                s.UId = newUID;
+                s.FirstName = firstName;
+                s.LastName = lastName;
+                s.Dob = dob;
+                s.Major = departmentAbbrev;
+                db.Students.Add(s);
+            }
+            else if (role == "Professor")
+            {
+                Professor p = new Professor();
+                p.UId = newUID;
+                p.FirstName = firstName;
+                p.LastName = lastName;
+                p.Dob = dob;
+                p.Department = departmentAbbrev;
+                db.Professors.Add(p);
+            }
+            else if (role == "Administrator")
+            {
+                Administrator a = new Administrator();
+                a.UId = newUID;
+                a.FirstName = firstName;
+                a.LastName = lastName;
+                a.Dob = dob;
+                db.Administrators.Add(a);
+            }
+
+            db.SaveChanges();
+            return newUID;
+        }
+
+        string generateUID()
+        {
+            var allUIDs = (
+                from p in db.Professors
+                select p.UId).Union(
+                from s in db.Students
+                select s.UId).Union(
+                from a in db.Administrators
+                select a.UId
+                );
+                // TODO .DefaultIfEmpty("u0000001"); // maybe this is better, maybe this can remove some logic below??
+
+            if (!allUIDs.Any())
+                return "u0000001";
+
+            var maxUID = allUIDs.Max();
+            var latestUID = string.IsNullOrEmpty(maxUID) ? 0 : int.Parse(maxUID.Substring(1));
+            var newUID = latestUID + 1;
+
+            return "u" + newUID.ToString("D7");
         }
 
         /*******End code to modify********/

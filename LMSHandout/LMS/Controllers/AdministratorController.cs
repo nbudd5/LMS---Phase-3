@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using LMS.Models.LMSModels;
+using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.Mvc;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-[assembly: InternalsVisibleTo( "LMSControllerTests" )]
+[assembly: InternalsVisibleTo("LMSControllerTests")]
 namespace LMS.Controllers
 {
     public class AdministratorController : Controller
@@ -50,8 +52,26 @@ namespace LMS.Controllers
         /// false if the department already exists, true otherwise.</returns>
         public IActionResult CreateDepartment(string subject, string name)
         {
-            
-            return Json(new { success = false});
+            if (departmentExists(subject))
+                return Json(new { success = false });
+
+            Department d = new Department();
+            d.Abbreviation = subject;
+            d.DName = name;
+            db.Departments.Add(d);
+            db.SaveChanges();
+
+            return Json(new { success = true });
+        }
+
+        private bool departmentExists(string subject)
+        {
+            var allDeparts =
+                from d in db.Departments
+                where d.Abbreviation == subject
+                select d;
+
+            return allDeparts.Any();
         }
 
 
@@ -65,8 +85,17 @@ namespace LMS.Controllers
         /// <returns>The JSON result</returns>
         public IActionResult GetCourses(string subject)
         {
-            
-            return Json(null);
+            var courses =
+                from c in db.Courses
+                where c.Abbreviation == subject
+                select new
+                {
+                    number = c.CNumber,
+                    name = c.CName
+                }
+                ;
+
+            return Json(courses.ToArray());
         }
 
         /// <summary>
@@ -80,9 +109,17 @@ namespace LMS.Controllers
         /// <returns>The JSON result</returns>
         public IActionResult GetProfessors(string subject)
         {
-            
-            return Json(null);
-            
+            var professors =
+                from p in db.Professors
+                where p.Department == subject
+                select new
+                {
+                    lname = p.LastName,
+                    fname = p.FirstName,
+                    uid = p.UId
+                };
+
+            return Json(professors.ToArray());
         }
 
 
@@ -97,8 +134,28 @@ namespace LMS.Controllers
         /// <returns>A JSON object containing {success = true/false}.
         /// false if the course already exists, true otherwise.</returns>
         public IActionResult CreateCourse(string subject, int number, string name)
-        {           
-            return Json(new { success = false });
+        {
+            if (CourseExists(subject, number))
+                return Json(new { success = false });
+
+            Course c = new Course();
+            c.Abbreviation = subject;
+            c.CNumber = (byte)number; // TODO change to int in db and in Course model, cant create four digits breaks
+            c.CName = name;
+            db.Courses.Add(c);
+            db.SaveChanges();
+
+            return Json(new { success = true });
+        }
+
+        private bool CourseExists(string subject, int number)
+        {
+            var course =
+                from c in db.Courses
+                where (c.Abbreviation == subject) && (c.CNumber == number)
+                select c;
+
+            return course.Any();
         }
 
 
@@ -120,11 +177,74 @@ namespace LMS.Controllers
         /// a Class offering of the same Course in the same Semester,
         /// true otherwise.</returns>
         public IActionResult CreateClass(string subject, int number, string season, int year, DateTime start, DateTime end, string location, string instructor)
-        {            
-            return Json(new { success = false});
+        {
+            uint courseID = ClassCourseID(subject, number);
+            if (courseID == 0)
+                return Json(new { success = false });
+
+            if (DuplicateClassOffering(courseID, season, year))
+                return Json(new { success = false });
+
+            if (LocationOccupied(season, year, start, end, location))
+                return Json(new { success = false });
+
+            Class c = new Class();
+            c.CourseId = courseID;
+            c.SemesterSeason = season;
+            c.SemesterYear = (byte)year;
+            c.StartTime = TimeOnly.FromDateTime(start);
+            c.EndTime = TimeOnly.FromDateTime(end);
+            c.Loc = location;
+            c.ProfId = instructor;
+            db.Classes.Add(c);
+            db.SaveChanges();
+
+            return Json(new { success = true });
         }
 
+        private bool LocationOccupied(string season, int year, DateTime start, DateTime end, string location)
+        {
+            var newStart = TimeOnly.FromDateTime(start);
+            var newEnd = TimeOnly.FromDateTime(end);
 
+            var taken =
+            from c in db.Classes
+            where c.SemesterSeason == season
+                && c.SemesterYear == year
+                && c.Loc == location
+                && newStart < c.EndTime
+                && c.StartTime < newEnd
+            select c;
+
+            return taken.Any();
+        }
+
+        private uint ClassCourseID(string subject, int number)
+        {
+            var course =
+            (
+            from c in db.Courses
+            where c.Abbreviation == subject && c.CNumber == number
+            select c
+            ).FirstOrDefault();
+
+            if (course == null)
+                return 0;
+
+            return course.CourseId;
+        }
+
+        private bool DuplicateClassOffering(uint courseID, string season, int year)
+        {
+            var duplicate =
+            (
+            from c in db.Classes
+            where c.CourseId == courseID && c.SemesterSeason == season && c.SemesterYear == year
+            select c
+            );
+
+            return duplicate.Any();
+        }
         /*******End code to modify********/
 
     }

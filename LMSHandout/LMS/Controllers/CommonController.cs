@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using LMS.Models.LMSModels;
 using Microsoft.AspNetCore.Mvc;
+using NuGet.Protocol;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 [assembly: InternalsVisibleTo( "LMSControllerTests" )]
@@ -29,8 +30,16 @@ namespace LMS.Controllers
         /// </summary>
         /// <returns>The JSON array</returns>
         public IActionResult GetDepartments()
-        {            
-            return Json(null);
+        {   
+            var allDept = 
+            from d in db.Departments
+            select new
+            {
+                name = d.DName,
+                subject = d.Abbreviation
+            };
+
+            return Json(allDept.ToArray());
         }
 
 
@@ -47,8 +56,22 @@ namespace LMS.Controllers
         /// </summary>
         /// <returns>The JSON array</returns>
         public IActionResult GetCatalog()
-        {            
-            return Json(null);
+        {   
+            var courseCatalog = 
+            from d in db.Departments
+            select new
+            {
+              subject = d.Abbreviation,
+              dname = d.DName,
+
+              course = from c in db.Courses
+              select new
+              {
+                 number = c.CNumber,
+                 cname = c.CName
+              }
+            };
+            return Json(courseCatalog.ToArray());
         }
 
         /// <summary>
