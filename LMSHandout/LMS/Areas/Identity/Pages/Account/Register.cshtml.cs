@@ -241,10 +241,6 @@ namespace LMS.Areas.Identity.Pages.Account
                 from a in db.Administrators
                 select a.UId
                 );
-                // TODO .DefaultIfEmpty("u0000001"); // maybe this is better, maybe this can remove some logic below??
-
-            if (!allUIDs.Any())
-                return "u0000001";
 
             var maxUID = allUIDs.Max();
             var latestUID = string.IsNullOrEmpty(maxUID) ? 0 : int.Parse(maxUID.Substring(1));
