@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-[assembly: InternalsVisibleTo( "LMSControllerTests" )]
+[assembly: InternalsVisibleTo("LMSControllerTests")]
 namespace LMS_CustomIdentity.Controllers
 {
     [Authorize(Roles = "Professor")]
@@ -220,7 +220,34 @@ namespace LMS_CustomIdentity.Controllers
         /// <returns>A JSON object containing {success = true/false} </returns>
         public IActionResult CreateAssignmentCategory(string subject, int num, string season, int year, string category, int catweight)
         {
-            return Json(new { success = false });
+            if (string.IsNullOrWhiteSpace(category) || catweight < 0 || catweight > 100) // maybe check for catwight
+                return Json(new { success = false });
+
+            bool catExists =
+                (from c in db.Courses
+                 join cl in db.Classes on c.CourseId equals cl.CourseId
+                 join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                 where c.Abbreviation == subject && c.CNumber == num
+                 && cl.SemesterSeason == season && cl.SemesterYear == year
+                 && ac.AcName == category
+                 select c).Any();
+
+            if (catExists)
+                return Json(new { success = false });
+
+            AssignmentCategory assignmentCat = new AssignmentCategory();
+            assignmentCat.GradingWeight = (byte)catweight;
+            assignmentCat.AcName = category;
+            assignmentCat.ClassId =
+                (from c in db.Courses
+                 join cl in db.Classes on c.CourseId equals cl.CourseId
+                 where c.Abbreviation == subject && c.CNumber == num
+                 && cl.SemesterSeason == season
+                 select cl.ClassId).First();
+            db.AssignmentCategories.Add(assignmentCat);
+            db.SaveChanges();
+
+            return Json(new { success = true });
         }
 
         /// <summary>
@@ -295,12 +322,25 @@ namespace LMS_CustomIdentity.Controllers
         /// <param name="uid">The professor's uid</param>
         /// <returns>The JSON array</returns>
         public IActionResult GetMyClasses(string uid)
-        {            
-            return Json(null);
+        {
+            var classes =
+                from p in db.Professors
+                join cl in db.Classes on p.UId equals cl.ProfId
+                join c in db.Courses on cl.CourseId equals c.CourseId
+                where p.UId == uid
+                select new
+                {
+                    subject = c.Abbreviation,
+                    number = c.CNumber,
+                    name = c.CName,
+                    season = cl.SemesterSeason,
+                    year = cl.SemesterYear
+                };
+            return Json(classes.ToArray());
         }
 
 
-        
+
         /*******End code to modify********/
     }
 }

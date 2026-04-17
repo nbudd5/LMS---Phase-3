@@ -189,7 +189,7 @@ namespace LMS.Controllers
                     department = p.Department
                 }).FirstOrDefault();
             if (professor != null)
-                return Json(student);
+                return Json(professor);
 
             var admin =
                (from a in db.Administrators
@@ -201,7 +201,7 @@ namespace LMS.Controllers
                    uid = a.UId
                }).FirstOrDefault();
             if (admin != null)
-                return Json(student);
+                return Json(admin);
 
             return Json(new { success = false });
         }
