@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using NuGet.Protocol;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-[assembly: InternalsVisibleTo( "LMSControllerTests" )]
+[assembly: InternalsVisibleTo("LMSControllerTests")]
 namespace LMS.Controllers
 {
     public class CommonController : Controller
@@ -30,8 +30,8 @@ namespace LMS.Controllers
         /// </summary>
         /// <returns>The JSON array</returns>
         public IActionResult GetDepartments()
-        {   
-            var allDept = 
+        {
+            var allDept =
             from d in db.Departments
             select new
             {
@@ -56,20 +56,21 @@ namespace LMS.Controllers
         /// </summary>
         /// <returns>The JSON array</returns>
         public IActionResult GetCatalog()
-        {   
-            var courseCatalog = 
+        {
+            var courseCatalog =
             from d in db.Departments
             select new
             {
-              subject = d.Abbreviation,
-              dname = d.DName,
+                subject = d.Abbreviation,
+                dname = d.DName,
 
-              course = from c in db.Courses
-              select new
-              {
-                 number = c.CNumber,
-                 cname = c.CName
-              }
+                ccourses = (from c in db.Courses
+                            where c.Abbreviation == d.Abbreviation
+                            select new
+                            {
+                                number = c.CNumber,
+                                cname = c.CName
+                            }).ToList()
             };
             return Json(courseCatalog.ToArray());
         }
@@ -103,8 +104,8 @@ namespace LMS.Controllers
                  start = cl.StartTime,
                  end = cl.EndTime,
                  fname = p.FirstName,
-                 lname = p.LastName                
-            };
+                 lname = p.LastName
+             };
 
             return Json(classOfferings.ToArray());
         }
@@ -122,7 +123,7 @@ namespace LMS.Controllers
         /// <param name="asgname">The name of the assignment in the category</param>
         /// <returns>The assignment contents</returns>
         public IActionResult GetAssignmentContents(string subject, int num, string season, int year, string category, string asgname)
-        {            
+        {
             return Content("");
         }
 
@@ -142,7 +143,7 @@ namespace LMS.Controllers
         /// <param name="uid">The uid of the student who submitted it</param>
         /// <returns>The submission text</returns>
         public IActionResult GetSubmissionText(string subject, int num, string season, int year, string category, string asgname, string uid)
-        {            
+        {
             return Content("");
         }
 
@@ -167,39 +168,39 @@ namespace LMS.Controllers
         {
             var student =
                 (from s in db.Students
-                where s.UId == uid
-                select new
-                {
-                    fname = s.FirstName,
-                    lname = s.LastName,
-                    uid = s.UId,
-                    department = s.Major
-                }).FirstOrDefault();
+                 where s.UId == uid
+                 select new
+                 {
+                     fname = s.FirstName,
+                     lname = s.LastName,
+                     uid = s.UId,
+                     department = s.Major
+                 }).FirstOrDefault();
             if (student != null)
                 return Json(student);
 
             var professor =
                 (from p in db.Professors
-                where p.UId == uid
-                select new
-                {
-                    fname = p.FirstName,
-                    lname = p.LastName,
-                    uid = p.UId,
-                    department = p.Department
-                }).FirstOrDefault();
+                 where p.UId == uid
+                 select new
+                 {
+                     fname = p.FirstName,
+                     lname = p.LastName,
+                     uid = p.UId,
+                     department = p.Department
+                 }).FirstOrDefault();
             if (professor != null)
                 return Json(student);
 
             var admin =
                (from a in db.Administrators
-               where a.UId == uid
-               select new
-               {
-                   fname = a.FirstName,
-                   lname = a.LastName,
-                   uid = a.UId
-               }).FirstOrDefault();
+                where a.UId == uid
+                select new
+                {
+                    fname = a.FirstName,
+                    lname = a.LastName,
+                    uid = a.UId
+                }).FirstOrDefault();
             if (admin != null)
                 return Json(student);
 
