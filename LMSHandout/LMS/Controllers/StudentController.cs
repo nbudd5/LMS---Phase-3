@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-[assembly: InternalsVisibleTo( "LMSControllerTests" )]
+[assembly: InternalsVisibleTo("LMSControllerTests")]
 namespace LMS.Controllers
 {
     [Authorize(Roles = "Student")]
@@ -75,8 +75,24 @@ namespace LMS.Controllers
         /// <param name="uid">The uid of the student</param>
         /// <returns>The JSON array</returns>
         public IActionResult GetMyClasses(string uid)
-        {           
-            return Json(null);
+        {
+            var myClasses =
+            from s in db.Students
+            where s.UId == uid
+            join eg in db.EnrollmentGrades on s.UId equals eg.UId
+            join c in db.Classes on eg.ClassId equals c.ClassId
+            join co in db.Courses on c.CourseId equals co.CourseId
+            select new
+            {
+                subject = co.Abbreviation,
+                number = co.CNumber,
+                name = co.CName,
+                season = c.SemesterSeason,
+                year = c.SemesterYear,
+                grade = string.IsNullOrEmpty(eg.Grade) ? "--" : eg.Grade
+            };
+
+            return Json(myClasses.ToArray());
         }
 
         /// <summary>
@@ -94,8 +110,43 @@ namespace LMS.Controllers
         /// <param name="uid"></param>
         /// <returns>The JSON array</returns>
         public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
-        {            
-            return Json(null);
+        {
+            var assignInClass =
+                from a in db.Assignments
+                join ac in db.AssignmentCategories on a.AcId equals ac.AcId
+                join c in db.Classes on ac.ClassId equals c.ClassId
+                join co in db.Courses on c.CourseId equals co.CourseId
+                join eg in db.EnrollmentGrades on c.ClassId equals eg.ClassId
+
+                where co.Abbreviation == subject
+                   && co.CNumber == num
+                   && c.SemesterSeason == season
+                   && c.SemesterYear == year
+                   && eg.UId == uid
+                select new
+                {
+                    a.AId,
+                    a.AName,
+                    ac.AcName,
+                    a.DueDate
+                };
+
+            var assignmentsWithSub =
+                from a in assignInClass
+                join s in db.Submissions
+                    on new { A = a.AId, B = uid }
+                    equals new { A = s.AId, B = s.UId }
+                    into studentSubs
+                from ss in studentSubs.DefaultIfEmpty()
+                select new
+                {
+                    aname = a.AName,
+                    cname = a.AcName,
+                    due = a.DueDate,
+                    score = ss == null ? (uint?)null : ss.Score
+                };
+
+            return Json(assignmentsWithSub.ToArray());
         }
 
 
@@ -119,7 +170,7 @@ namespace LMS.Controllers
         /// <returns>A JSON object containing {success = true/false}</returns>
         public IActionResult SubmitAssignmentText(string subject, int num, string season, int year,
           string category, string asgname, string uid, string contents)
-        {           
+        {
             return Json(new { success = false });
         }
 
@@ -135,8 +186,8 @@ namespace LMS.Controllers
         /// <returns>A JSON object containing {success = {true/false}. 
         /// false if the student is already enrolled in the class, true otherwise.</returns>
         public IActionResult Enroll(string subject, int num, string season, int year, string uid)
-        {          
-            return Json(new { success = false});
+        {
+            return Json(new { success = false });
         }
 
 
@@ -153,10 +204,10 @@ namespace LMS.Controllers
         /// <param name="uid">The uid of the student</param>
         /// <returns>A JSON object containing a single field called "gpa" with the number value</returns>
         public IActionResult GetGPA(string uid)
-        {            
+        {
             return Json(null);
         }
-                
+
         /*******End code to modify********/
 
     }
