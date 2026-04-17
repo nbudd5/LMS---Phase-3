@@ -179,13 +179,11 @@ namespace LMS.Controllers
         public IActionResult CreateClass(string subject, int number, string season, int year, DateTime start, DateTime end, string location, string instructor)
         {
             uint courseID = ClassCourseID(subject, number);
-            if (courseID == 0)
-                return Json(new { success = false });
 
-            if (DuplicateClassOffering(courseID, season, year))
-                return Json(new { success = false });
-
-            if (LocationOccupied(season, year, start, end, location))
+            if (DuplicateClassOffering(courseID, season, year)
+            || LocationOccupied(season, year, start, end, location)
+            || string.IsNullOrEmpty(instructor)
+            || string.IsNullOrEmpty(location))
                 return Json(new { success = false });
 
             Class c = new Class();
@@ -226,10 +224,7 @@ namespace LMS.Controllers
             from c in db.Courses
             where c.Abbreviation == subject && c.CNumber == number
             select c
-            ).FirstOrDefault();
-
-            if (course == null)
-                return 0;
+            ).First();
 
             return course.CourseId;
         }
