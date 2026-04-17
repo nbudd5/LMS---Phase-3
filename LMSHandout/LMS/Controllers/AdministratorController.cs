@@ -183,13 +183,14 @@ namespace LMS.Controllers
             if (DuplicateClassOffering(courseID, season, year)
             || LocationOccupied(season, year, start, end, location)
             || string.IsNullOrEmpty(instructor)
-            || string.IsNullOrEmpty(location))
+            || string.IsNullOrEmpty(location)
+            || year > 9999 || year < 1000)
                 return Json(new { success = false });
 
             Class c = new Class();
             c.CourseId = courseID;
             c.SemesterSeason = season;
-            c.SemesterYear = (byte)year;
+            c.SemesterYear = (ushort)year;
             c.StartTime = TimeOnly.FromDateTime(start);
             c.EndTime = TimeOnly.FromDateTime(end);
             c.Loc = location;

@@ -151,7 +151,7 @@ namespace LMS.Models.LMSModels
 
                 entity.Property(e => e.SemesterSeason).HasMaxLength(6);
 
-                entity.Property(e => e.SemesterYear).HasColumnType("tinyint(3) unsigned");
+                entity.Property(e => e.SemesterYear).HasColumnType("smallint(5) unsigned");
 
                 entity.Property(e => e.StartTime).HasColumnType("time");
 

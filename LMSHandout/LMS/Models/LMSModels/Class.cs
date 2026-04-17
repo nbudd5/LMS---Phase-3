@@ -12,7 +12,7 @@ namespace LMS.Models.LMSModels
         }
 
         public uint ClassId { get; set; }
-        public byte SemesterYear { get; set; }
+        public ushort SemesterYear { get; set; }
         public string SemesterSeason { get; set; } = null!;
         public string Loc { get; set; } = null!;
         public TimeOnly StartTime { get; set; }
