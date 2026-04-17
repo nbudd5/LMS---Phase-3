@@ -135,12 +135,12 @@ namespace LMS.Controllers
         /// false if the course already exists, true otherwise.</returns>
         public IActionResult CreateCourse(string subject, int number, string name)
         {
-            if (CourseExists(subject, number))
+            if (CourseExists(subject, number) || number > 9999 || number < 0)
                 return Json(new { success = false });
 
             Course c = new Course();
             c.Abbreviation = subject;
-            c.CNumber = (byte)number; // TODO change to int in db and in Course model, cant create four digits breaks
+            c.CNumber = (ushort)number;
             c.CName = name;
             db.Courses.Add(c);
             db.SaveChanges();

@@ -186,7 +186,7 @@ namespace LMS.Models.LMSModels
                     .HasColumnName("cName");
 
                 entity.Property(e => e.CNumber)
-                    .HasColumnType("tinyint(3) unsigned")
+                    .HasColumnType("smallint(5) unsigned")
                     .HasColumnName("cNumber");
 
                 entity.HasOne(d => d.AbbreviationNavigation)

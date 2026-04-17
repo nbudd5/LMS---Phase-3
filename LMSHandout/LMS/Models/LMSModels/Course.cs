@@ -12,7 +12,7 @@ namespace LMS.Models.LMSModels
 
         public uint CourseId { get; set; }
         public string CName { get; set; } = null!;
-        public byte CNumber { get; set; }
+        public ushort CNumber { get; set; }
         public string Abbreviation { get; set; } = null!;
 
         public virtual Department AbbreviationNavigation { get; set; } = null!;
