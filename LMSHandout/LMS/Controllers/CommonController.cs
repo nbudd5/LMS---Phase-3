@@ -124,7 +124,24 @@ namespace LMS.Controllers
         /// <returns>The assignment contents</returns>
         public IActionResult GetAssignmentContents(string subject, int num, string season, int year, string category, string asgname)
         {
-            return Content("");
+            var assignmentContents = 
+            (
+                from co in db.Courses
+                join c in db.Classes on co.CourseId equals c.CourseId
+                join ac in db.AssignmentCategories on c.ClassId equals ac.ClassId
+                join a in db.Assignments on ac.AcId equals a.AcId
+
+                where co.Abbreviation == subject && co.CNumber == num
+                    && c.SemesterSeason == season && c.SemesterYear == year
+                    && ac.AcName == category
+                    && a.AName == asgname
+                select a.Contents
+            ).FirstOrDefault();
+
+            if(assignmentContents == null)
+                return Content("");
+
+            return Content(assignmentContents);
         }
 
 
@@ -144,7 +161,26 @@ namespace LMS.Controllers
         /// <returns>The submission text</returns>
         public IActionResult GetSubmissionText(string subject, int num, string season, int year, string category, string asgname, string uid)
         {
-            return Content("");
+            var submissionContent =
+            (
+                from co in db.Courses
+                join c in db.Classes on co.CourseId equals c.CourseId
+                join ac in db.AssignmentCategories on c.ClassId equals ac.ClassId
+                join a in db.Assignments on ac.AcId equals a.AcId
+                join s in db.Submissions on a.AId equals s.AId
+
+                where co.Abbreviation == subject && co.CNumber == num
+                    && c.SemesterSeason == season && c.SemesterYear == year 
+                    && ac.AcName == category
+                    && a.AName == asgname
+                    && s.UId == uid
+                select s.Contents
+            ).SingleOrDefault();
+
+            if(submissionContent == null)
+                return Content("");
+
+            return Content(submissionContent);
         }
 
 
