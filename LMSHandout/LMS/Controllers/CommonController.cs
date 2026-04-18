@@ -64,7 +64,7 @@ namespace LMS.Controllers
                 subject = d.Abbreviation,
                 dname = d.DName,
 
-                ccourses = (from c in db.Courses
+                courses = (from c in db.Courses
                             where c.Abbreviation == d.Abbreviation
                             select new
                             {

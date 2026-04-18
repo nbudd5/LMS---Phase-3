@@ -111,7 +111,7 @@ namespace LMS.Controllers
         /// <returns>The JSON array</returns>
         public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
         {
-            var assignInClass =
+            var assignsOfClass =
                 from a in db.Assignments
                 join ac in db.AssignmentCategories on a.AcId equals ac.AcId
                 join c in db.Classes on ac.ClassId equals c.ClassId
@@ -132,7 +132,7 @@ namespace LMS.Controllers
                 };
 
             var assignmentsWithSub =
-                from a in assignInClass
+                from a in assignsOfClass
                 join s in db.Submissions
                     on new { A = a.AId, B = uid }
                     equals new { A = s.AId, B = s.UId }
@@ -171,7 +171,53 @@ namespace LMS.Controllers
         public IActionResult SubmitAssignmentText(string subject, int num, string season, int year,
           string category, string asgname, string uid, string contents)
         {
-            return Json(new { success = false });
+            var assignment =
+            (
+            from co in db.Courses
+            join c in db.Classes on co.CourseId equals c.CourseId
+            join eg in db.EnrollmentGrades on c.ClassId equals eg.ClassId
+            join ac in db.AssignmentCategories on c.ClassId equals ac.ClassId
+            join a in db.Assignments on ac.AcId equals a.AcId
+            where co.Abbreviation == subject
+                && co.CNumber == num
+                && c.SemesterSeason == season
+                && c.SemesterYear == year
+                && ac.AcName == category
+                && a.AName == asgname
+                && eg.UId == uid
+            select a
+            ).SingleOrDefault();
+
+            if (assignment == null)
+                return Json(new { success = false });
+
+            var submission =
+            (
+                from s in db.Submissions
+                where s.AId == assignment.AId && s.UId == uid
+                select s
+            ).SingleOrDefault();
+
+            if (submission == null)
+            {
+                submission = new Submission
+                {
+                    AId = assignment.AId,
+                    UId = uid,
+                    Contents = contents,
+                    SubmissionTime = DateTime.Now,
+                    Score = 0
+                };
+                db.Submissions.Add(submission);
+            }
+            else
+            {
+                submission.Contents = contents;
+                submission.SubmissionTime = DateTime.Now;
+            }
+
+            db.SaveChanges();
+            return Json(new { success = true });
         }
 
 
@@ -187,7 +233,40 @@ namespace LMS.Controllers
         /// false if the student is already enrolled in the class, true otherwise.</returns>
         public IActionResult Enroll(string subject, int num, string season, int year, string uid)
         {
-            return Json(new { success = false });
+            var classToEnroll =
+            (
+            from co in db.Courses
+            join c in db.Classes on co.CourseId equals c.CourseId
+            where co.Abbreviation == subject
+                && co.CNumber == num
+                && c.SemesterSeason == season
+                && c.SemesterYear == year
+            select c
+            ).SingleOrDefault();
+
+            if (classToEnroll == null)
+                return Json(new { success = false });
+
+            var alreadyEnrolled =
+            (
+            from e in db.EnrollmentGrades
+            where e.ClassId == classToEnroll.ClassId && e.UId == uid
+            select e
+            ).Any();
+
+            if (alreadyEnrolled)
+                return Json(new { success = false });
+
+            var eg = new EnrollmentGrade
+            {
+                UId = uid,
+                ClassId = classToEnroll.ClassId,
+                Grade = ""
+            };
+
+            db.EnrollmentGrades.Add(eg);
+            db.SaveChanges();
+            return Json(new { success = true });
         }
 
 
