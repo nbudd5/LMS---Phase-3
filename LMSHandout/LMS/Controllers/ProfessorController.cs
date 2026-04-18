@@ -266,8 +266,20 @@ namespace LMS_CustomIdentity.Controllers
         /// <returns>A JSON object containing success = true/false</returns>
         public IActionResult CreateAssignment(string subject, int num, string season, int year, string category, string asgname, int asgpoints, DateTime asgdue, string asgcontents)
         {
-            // maybe check for existing assignments, waiting for response to piaza post
             if (string.IsNullOrWhiteSpace(asgname))
+                return Json(new { success = false });
+
+            bool asgExists =
+               (from c in db.Courses
+                join cl in db.Classes on c.CourseId equals cl.CourseId
+                join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                join a in db.Assignments on ac.AcId equals a.AcId
+                where c.Abbreviation == subject && c.CNumber == num
+                && cl.SemesterSeason == season && cl.SemesterYear == year
+                && ac.AcName == category && a.AName == asgname 
+                select c).Any();
+
+            if (asgExists)
                 return Json(new { success = false });
 
             Assignment assignment = new Assignment();
