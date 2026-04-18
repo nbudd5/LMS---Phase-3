@@ -168,7 +168,7 @@ namespace LMS_CustomIdentity.Controllers
                 select new
                 {
                     aname = a.AName,
-                    cName = ac.AcName,
+                    cname = ac.AcName,
                     due = a.DueDate,
                     submissions = (from s in db.Submissions
                                    where s.AId == a.AId
@@ -276,7 +276,7 @@ namespace LMS_CustomIdentity.Controllers
                 join a in db.Assignments on ac.AcId equals a.AcId
                 where c.Abbreviation == subject && c.CNumber == num
                 && cl.SemesterSeason == season && cl.SemesterYear == year
-                && ac.AcName == category && a.AName == asgname 
+                && ac.AcName == category && a.AName == asgname
                 select c).Any();
 
             if (asgExists)
@@ -340,7 +340,7 @@ namespace LMS_CustomIdentity.Controllers
                     score = sub.Score
                 };
 
-            return Json(asgSubmissions);
+            return Json(asgSubmissions.ToArray());
         }
 
 
@@ -358,9 +358,6 @@ namespace LMS_CustomIdentity.Controllers
         /// <returns>A JSON object containing success = true/false</returns>
         public IActionResult GradeSubmission(string subject, int num, string season, int year, string category, string asgname, string uid, int score)
         {
-            // return false until method's finsihed
-            return Json(new { success = false });
-
             var submission =
                 (from c in db.Courses
                  join cl in db.Classes on c.CourseId equals cl.CourseId
