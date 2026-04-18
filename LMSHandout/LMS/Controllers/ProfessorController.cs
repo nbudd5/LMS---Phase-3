@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using LMS.Models.LMSModels;
@@ -282,20 +283,47 @@ namespace LMS_CustomIdentity.Controllers
             if (asgExists)
                 return Json(new { success = false });
 
+            var classData =
+                (from c in db.Courses
+                 join cl in db.Classes on c.CourseId equals cl.CourseId
+                 join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                 where c.Abbreviation == subject && c.CNumber == num && cl.SemesterSeason == season 
+                 && cl.SemesterYear == year && ac.AcName == category
+                 select new { ac.AcId, cl.ClassId }).First();
+
             Assignment assignment = new Assignment();
             assignment.AName = asgname;
             assignment.MaxPointValue = (uint)asgpoints;
             assignment.Contents = asgcontents;
             assignment.DueDate = asgdue;
-            assignment.AcId =
-                (from c in db.Courses
-                 join cl in db.Classes on c.CourseId equals cl.CourseId
-                 join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
-                 where c.Abbreviation == subject && c.CNumber == num
-                 && cl.SemesterSeason == season && cl.SemesterYear == year
-                 && ac.AcName == category
-                 select ac.AcId).First();
+            assignment.AcId = classData.AcId;
             db.Assignments.Add(assignment);
+
+            var allEnrollments = (from e in db.EnrollmentGrades
+                                  where e.ClassId == classData.ClassId
+                                  select e).ToList();
+
+            foreach (var enrollment in allEnrollments)
+            {
+                var studentAssignments = (from s in db.Students
+                                          join e in db.EnrollmentGrades on s.UId equals e.UId
+                                          join cl in db.Classes on e.ClassId equals cl.ClassId
+                                          join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                                          join a in db.Assignments on ac.AcId equals a.AcId
+                                          where s.UId == enrollment.UId && cl.ClassId == classData.ClassId
+                                          join sub in db.Submissions on a.AId equals sub.AId into subs
+                                          from currSub in subs.DefaultIfEmpty()
+                                          select new
+                                          {
+                                              catName = ac.AcId,
+                                              weight = ac.GradingWeight,
+                                              score = currSub == null ? 0 : currSub.Score,
+                                              maxScore = a.MaxPointValue
+                                          }).ToList();
+
+                UpdateGrade(enrollment, studentAssignments);
+            }
+
             db.SaveChanges();
 
             return Json(new { success = true });
@@ -368,14 +396,101 @@ namespace LMS_CustomIdentity.Controllers
                  where c.Abbreviation == subject && c.CNumber == num
                  && cl.SemesterSeason == season && cl.SemesterYear == year
                  && ac.AcName == category && a.AName == asgname && s.UId == uid
-                 select sub).First();
+                 select new
+                 {
+                     Submission = sub,
+                     ClassId = cl.ClassId
+                 }).First();
 
-            submission.Score = (uint)score;
+            submission.Submission.Score = (uint)score;
+
+            var assignments =
+                (from s in db.Students
+                 join e in db.EnrollmentGrades on s.UId equals e.UId
+                 join cl in db.Classes on e.ClassId equals cl.ClassId
+                 join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                 join a in db.Assignments on ac.AcId equals a.AcId
+                 where s.UId == uid && cl.ClassId == submission.ClassId
+                 join sub in db.Submissions on a.AId equals sub.AId into subs
+                 from currSub in subs.DefaultIfEmpty()
+                 select new
+                 {
+                     catName = ac.AcId,
+                     weight = ac.GradingWeight,
+                     score = currSub == null ? 0 : currSub.Score,
+                     maxScore = a.MaxPointValue
+                 }).ToList();
+
+            var enrollment = (from e in db.EnrollmentGrades
+                              where e.UId == uid && e.ClassId == submission.ClassId
+                              select e).First();
+
+            UpdateGrade(enrollment, assignments);
+
             db.SaveChanges();
 
             return Json(new { success = true });
         }
 
+        private void UpdateGrade(EnrollmentGrade enrollment, IEnumerable<dynamic> assignments)
+        {
+            var agnList = assignments.ToList();
+            if (agnList.Count == 0)
+            {
+                enrollment.Grade = "--";
+                return;
+            }
+
+            double totalScaledScore = 0;
+            double sumOfWeights = 0;
+
+
+            var categoryIds = (from d in agnList select d.catName).Distinct().ToList();
+
+            foreach (var catId in categoryIds)
+            {
+                double catEarned = 0;
+                double catMax = 0;
+                int catWeight = 0;
+
+                foreach (var row in agnList)
+                {
+                    if (row.catName == catId)
+                    {
+                        catEarned += (double)row.score;
+                        catMax += (double)row.maxScore;
+                        catWeight = row.weight;
+                    }
+                }
+
+                if (catMax > 0)
+                {
+                    totalScaledScore += (catEarned / catMax) * catWeight;
+                    sumOfWeights += catWeight;
+                }
+            }
+
+            if (sumOfWeights > 0)
+            {
+                double finalPercentage = totalScaledScore * (100.0 / sumOfWeights);
+                enrollment.Grade = GetLetterGrade(finalPercentage);
+            }
+        }
+        private string GetLetterGrade(double X)
+        {
+            if (X >= 93) return "A";
+            else if (X >= 90) return "A-";
+            else if (X >= 87) return "B+";
+            else if (X >= 83) return "B";
+            else if (X >= 80) return "B-";
+            else if (X >= 77) return "C+";
+            else if (X >= 73) return "C";
+            else if (X >= 70) return "C-";
+            else if (X >= 67) return "D+";
+            else if (X >= 63) return "D";
+            else if (X >= 60) return "D-";
+            else return "E";
+        }
 
         /// <summary>
         /// Returns a JSON array of the classes taught by the specified professor
