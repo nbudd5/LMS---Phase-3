@@ -261,7 +261,7 @@ namespace LMS.Controllers
             {
                 UId = uid,
                 ClassId = classToEnroll.ClassId,
-                Grade = ""
+                Grade = "--"
             };
 
             db.EnrollmentGrades.Add(eg);
